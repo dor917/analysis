@@ -94,6 +94,7 @@ public class AnalysisServiceImpl implements AnalysisService {
                     int idx = containsDuplicationData(duplicationDataList, duplicationData);
                     if (idx > 0) {
                         duplicationData.setDiameter(duplicationData.getDiameter() + duplicationDataList.get(idx).getDiameter());
+                        duplicationDataList.remove(idx);
                     }
 
                 } else {
