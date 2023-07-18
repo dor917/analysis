@@ -2,6 +2,7 @@ package com.daon.analysis.service;
 
 import com.daon.analysis.dto.DuplicationData;
 import org.apache.commons.io.FilenameUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.poi.hssf.usermodel.HSSFWorkbook;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.Row;
@@ -14,6 +15,7 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.File;
 import java.io.IOException;
 import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 public class AnalysisServiceImpl implements AnalysisService {
@@ -62,33 +64,68 @@ public class AnalysisServiceImpl implements AnalysisService {
         }
 
         Sheet worksheet = workbook.getSheetAt(sheetIndex);
+        int totalCnt = 0;
         for (int i = 1; i < worksheet.getPhysicalNumberOfRows(); i++) { // 4
 
             Row row = worksheet.getRow(i);
             DuplicationData duplicationData = new DuplicationData();
             try {
-                if (null != row.getCell(5)) {
-                    Cell mountaiNameCell = row.getCell(1);
-                    Cell treeNameCell = row.getCell(2);
+                totalCnt ++;
+                Cell mountaiNameCell = row.getCell(1);
+                Cell treeNameCell = row.getCell(2);
+                Cell diameterCell = row.getCell(3);
 
-                    duplicationData.setPointName(mountaiNameCell.getStringCellValue());
-                    duplicationData.setTreeName(treeNameCell.getStringCellValue());
-                }
-                if ((null == duplicationData.getTreeName() || "".equals(duplicationData.getTreeName())) && (null == duplicationData.getPointName() || "".equals(duplicationData.getPointName()))) {
-                    continue;
+                String mountaiName = null == mountaiNameCell ?  "" : mountaiNameCell.getStringCellValue();
+                duplicationData.setPointName(mountaiName);
+
+                String treeName = null == mountaiNameCell ?  "" : treeNameCell.getStringCellValue();
+                duplicationData.setTreeName(treeName);
+                //직경 확인후 값 저장
+                if (null != diameterCell) {
+
+                    Double diameter = diameterCell.getNumericCellValue();
+                    if (null != diameter && 0 != diameter) {
+                        duplicationData.setDiameter(diameter);
+                    } else {
+                        duplicationData.setDiameter(0D);
+                    }
+
+                    //포함여부 확인후 duplicationData
+                    int idx = containsDuplicationData(duplicationDataList, duplicationData);
+                    if (idx > 0) {
+                        duplicationData.setDiameter(duplicationData.getDiameter() + duplicationDataList.get(idx).getDiameter());
+                    }
+
                 } else {
-                    duplicationDataList.add(duplicationData);
+                    duplicationData.setDiameter(0D);
                 }
+
+
+                duplicationDataList.add(duplicationData);
+
+
             } catch(Exception e) {
                 e.printStackTrace();
             }
 
         }
         ArrayList<DuplicationData> resultList = new ArrayList<DuplicationData>(new HashSet<DuplicationData>(duplicationDataList));
-        for (DuplicationData data: resultList) {
+       for (DuplicationData data: resultList) {
             System.out.println(data.toString());
         }
         System.out.println(resultList.size());
         return null;
+    }
+
+    /**  containsDuplicationData 중복여부 확인 **/
+    public int containsDuplicationData(List<DuplicationData> list, DuplicationData duplicationData) {
+        int idx = -1;
+        for (int i = 0 ; i < list.size() ; i ++) {
+            if (list.get(i).equals(duplicationData)) {
+                idx = i;
+                break;
+            }
+        }
+        return idx;
     }
 }
