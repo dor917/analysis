@@ -6,6 +6,7 @@ public class DuplicationData {
     private String pointName;
     private String treeName;
     private Double diameter;
+    private int cnt;
 
     public String getPointName() {
         return pointName;
@@ -31,15 +32,24 @@ public class DuplicationData {
         this.diameter = diameter;
     }
 
+
+    public int getCnt() {
+        return cnt;
+    }
+
+    public void setCnt(int cnt) {
+        this.cnt = cnt;
+    }
+
     @Override
     public String toString() {
         return "DuplicationData{" +
                 "pointName='" + pointName + '\'' +
                 ", treeName='" + treeName + '\'' +
                 ", diameter=" + diameter +
+                ", cnt=" + cnt +
                 '}';
     }
-
 
     @Override
     public boolean equals(Object o) {

@@ -15,6 +15,7 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.File;
 import java.io.IOException;
 import java.util.*;
+import java.util.stream.Collector;
 import java.util.stream.Collectors;
 
 @Service
@@ -69,6 +70,9 @@ public class AnalysisServiceImpl implements AnalysisService {
 
             Row row = worksheet.getRow(i);
             DuplicationData duplicationData = new DuplicationData();
+
+            //최초 cnt 1 설정
+            duplicationData.setCnt(1);
             try {
                 totalCnt ++;
                 Cell mountaiNameCell = row.getCell(1);
@@ -94,6 +98,7 @@ public class AnalysisServiceImpl implements AnalysisService {
                     int idx = containsDuplicationData(duplicationDataList, duplicationData);
                     if (idx > 0) {
                         duplicationData.setDiameter(duplicationData.getDiameter() + duplicationDataList.get(idx).getDiameter());
+                        duplicationData.setCnt(duplicationDataList.get(idx).getCnt() + 1);
                         duplicationDataList.remove(idx);
                     }
 
@@ -110,7 +115,8 @@ public class AnalysisServiceImpl implements AnalysisService {
             }
 
         }
-        ArrayList<DuplicationData> resultList = new ArrayList<DuplicationData>(new HashSet<DuplicationData>(duplicationDataList));
+        List<DuplicationData> resultList = new ArrayList<DuplicationData>(new HashSet<DuplicationData>(duplicationDataList));
+        resultList = resultList.stream().sorted(Comparator.comparing(DuplicationData::getTreeName)).collect(Collectors.toList());
        for (DuplicationData data: resultList) {
             System.out.println(data.toString());
         }
