@@ -54,6 +54,8 @@ public class AnalysisServiceImpl implements AnalysisService {
     public File duplication(MultipartFile file, Integer sheetIndex) throws Exception {
         List<DuplicationData> duplicationDataList = new ArrayList<>();
         String extension = FilenameUtils.getExtension(file.getOriginalFilename());
+        Set<String> pointSet = new HashSet<>();
+
         if (!extension.equals("xlsx") && !extension.equals("xls")) {
             throw new IOException("엑셀파일만 업로드 해주세요.");
         }
@@ -80,35 +82,36 @@ public class AnalysisServiceImpl implements AnalysisService {
                 Cell diameterCell = row.getCell(3);
 
                 String mountaiName = null == mountaiNameCell ?  "" : mountaiNameCell.getStringCellValue();
-                duplicationData.setPointName(mountaiName);
+                if (StringUtils.isNotEmpty(mountaiName)) {
+                    duplicationData.setPointName(mountaiName);
+                    pointSet.add(mountaiName);
 
-                String treeName = null == mountaiNameCell ?  "" : treeNameCell.getStringCellValue();
-                duplicationData.setTreeName(treeName);
-                //직경 확인후 값 저장
-                if (null != diameterCell) {
+                    String treeName = null == mountaiNameCell ?  "" : treeNameCell.getStringCellValue();
+                    duplicationData.setTreeName(treeName);
+                    //직경 확인후 값 저장
+                    if (null != diameterCell) {
 
-                    Double diameter = diameterCell.getNumericCellValue();
-                    if (null != diameter && 0 != diameter) {
-                        duplicationData.setDiameter(diameter);
+                        Double diameter = diameterCell.getNumericCellValue();
+                        if (null != diameter && 0 != diameter) {
+                            duplicationData.setDiameter(diameter);
+                        } else {
+                            duplicationData.setDiameter(0D);
+                        }
+
+                        //포함여부 확인후 duplicationData
+                        int idx = containsDuplicationData(duplicationDataList, duplicationData);
+                        if (idx > 0) {
+                            duplicationData.setDiameter(duplicationData.getDiameter() + duplicationDataList.get(idx).getDiameter());
+                            duplicationData.setCnt(duplicationDataList.get(idx).getCnt() + 1);
+                            duplicationDataList.remove(idx);
+                        }
+
                     } else {
                         duplicationData.setDiameter(0D);
                     }
 
-                    //포함여부 확인후 duplicationData
-                    int idx = containsDuplicationData(duplicationDataList, duplicationData);
-                    if (idx > 0) {
-                        duplicationData.setDiameter(duplicationData.getDiameter() + duplicationDataList.get(idx).getDiameter());
-                        duplicationData.setCnt(duplicationDataList.get(idx).getCnt() + 1);
-                        duplicationDataList.remove(idx);
-                    }
-
-                } else {
-                    duplicationData.setDiameter(0D);
+                    duplicationDataList.add(duplicationData);
                 }
-
-
-                duplicationDataList.add(duplicationData);
-
 
             } catch(Exception e) {
                 e.printStackTrace();
@@ -121,6 +124,11 @@ public class AnalysisServiceImpl implements AnalysisService {
             System.out.println(data.toString());
         }
         System.out.println(resultList.size());
+        System.out.println(pointSet.size());
+        for (String data: pointSet) {
+            System.out.println(data);
+        }
+        //https://jforj.tistory.com/308 시트만들기
         return null;
     }
 
