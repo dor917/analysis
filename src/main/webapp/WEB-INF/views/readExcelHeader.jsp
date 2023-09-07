@@ -9,6 +9,7 @@
 %>
 <html>
 <head>
+	<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>
 <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
 <title>Insert title here</title>
 </head>
@@ -28,9 +29,10 @@
 			<button data-value='<%=i%>' class="sheet-name"><%=readDateList.get(i).get(String.valueOf(i))%></button>
 		<% } %>
 	</div>
-	<form id="duplicationForm" enctype="multipart/form-data">
+	<form id="duplicationForm" enctype="multipart/form-data" action="/excel/duplication.dor">
 		<input type="file" name="file" />
 		<input type="text" name="sheetIndex" id="sheetIndex" value="1"/>
+		<button>azz</button>
 	</form>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
 <script type="text/javascript">
@@ -46,12 +48,46 @@
 			contentType: false,
 			cache: false,
 			data: frmData,
-			success: function(data) {
-				console.log(data);
-			},
-			error: function(e) {
-				console.log(e);
-				alert('파일업로드 실패');
+			xhrFields: {
+				responseType: "blob",
+			}
+		})
+		.done(function (blob, status, xhr) {
+			// check for a filename
+			var fileName = "";
+			var disposition = xhr.getResponseHeader("Content-Disposition");
+
+			if (disposition && disposition.indexOf("attachment") !== -1) {
+				var filenameRegex = /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/;
+				var matches = filenameRegex.exec(disposition);
+
+				if (matches != null && matches[1]) {
+					fileName = decodeURI(matches[1].replace(/['"]/g, ""));
+				}
+			}
+
+			// for IE
+			if (window.navigator && window.navigator.msSaveOrOpenBlob) {
+				window.navigator.msSaveOrOpenBlob(blob, fileName);
+			} else {
+				var URL = window.URL || window.webkitURL;
+				var downloadUrl = URL.createObjectURL(blob);
+
+				if (fileName) {
+					var a = document.createElement("a");
+
+					// for safari
+					if (a.download === undefined) {
+						window.location.href = downloadUrl;
+					} else {
+						a.href = downloadUrl;
+						a.download = fileName;
+						document.body.appendChild(a);
+						a.click();
+					}
+				} else {
+					window.location.href = downloadUrl;
+				}
 			}
 		});
 	}

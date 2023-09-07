@@ -4,18 +4,17 @@ import com.daon.analysis.dto.DuplicationData;
 import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.poi.hssf.usermodel.HSSFWorkbook;
-import org.apache.poi.ss.usermodel.Cell;
-import org.apache.poi.ss.usermodel.Row;
-import org.apache.poi.ss.usermodel.Sheet;
-import org.apache.poi.ss.usermodel.Workbook;
+import org.apache.poi.ss.usermodel.*;
+import org.apache.poi.xssf.streaming.SXSSFWorkbook;
+import org.apache.poi.xssf.usermodel.XSSFCellStyle;
+import org.apache.poi.xssf.usermodel.XSSFColor;
+import org.apache.poi.xssf.usermodel.XSSFFont;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.io.File;
 import java.io.IOException;
 import java.util.*;
-import java.util.stream.Collector;
 import java.util.stream.Collectors;
 
 @Service
@@ -41,7 +40,7 @@ public class AnalysisServiceImpl implements AnalysisService {
 //        Sheet worksheet = workbook.getSheetAt(1);
 
         //시트명 불러오기
-        for (int i = 0; i < workbook.getNumberOfSheets(); i++ ) {
+        for (int i = 0; i < workbook.getNumberOfSheets(); i++) {
             Map<String, String> sheetMap = new HashMap<>();
             sheetMap.put(String.valueOf(i), workbook.getSheetName(i));
             dataList.add(sheetMap);
@@ -51,10 +50,12 @@ public class AnalysisServiceImpl implements AnalysisService {
     }
 
     @Override
-    public File duplication(MultipartFile file, Integer sheetIndex) throws Exception {
+    public SXSSFWorkbook duplication(MultipartFile file, Integer sheetIndex) throws Exception {
+        final String fileName = "temp";
         List<DuplicationData> duplicationDataList = new ArrayList<>();
         String extension = FilenameUtils.getExtension(file.getOriginalFilename());
         Set<String> pointSet = new HashSet<>();
+        Set<String> treeSet = new HashSet<>();
 
         if (!extension.equals("xlsx") && !extension.equals("xls")) {
             throw new IOException("엑셀파일만 업로드 해주세요.");
@@ -76,18 +77,19 @@ public class AnalysisServiceImpl implements AnalysisService {
             //최초 cnt 1 설정
             duplicationData.setCnt(1);
             try {
-                totalCnt ++;
+                totalCnt++;
                 Cell mountaiNameCell = row.getCell(1);
                 Cell treeNameCell = row.getCell(2);
                 Cell diameterCell = row.getCell(3);
 
-                String mountaiName = null == mountaiNameCell ?  "" : mountaiNameCell.getStringCellValue();
+                String mountaiName = null == mountaiNameCell ? "" : mountaiNameCell.getStringCellValue();
                 if (StringUtils.isNotEmpty(mountaiName)) {
                     duplicationData.setPointName(mountaiName);
                     pointSet.add(mountaiName);
 
-                    String treeName = null == mountaiNameCell ?  "" : treeNameCell.getStringCellValue();
+                    String treeName = null == mountaiNameCell ? "" : treeNameCell.getStringCellValue();
                     duplicationData.setTreeName(treeName);
+                    treeSet.add(treeName);
                     //직경 확인후 값 저장
                     if (null != diameterCell) {
 
@@ -113,29 +115,96 @@ public class AnalysisServiceImpl implements AnalysisService {
                     duplicationDataList.add(duplicationData);
                 }
 
-            } catch(Exception e) {
+            } catch (Exception e) {
                 e.printStackTrace();
             }
 
         }
         List<DuplicationData> resultList = new ArrayList<DuplicationData>(new HashSet<DuplicationData>(duplicationDataList));
         resultList = resultList.stream().sorted(Comparator.comparing(DuplicationData::getTreeName)).collect(Collectors.toList());
-       for (DuplicationData data: resultList) {
-            System.out.println(data.toString());
-        }
-        System.out.println(resultList.size());
-        System.out.println(pointSet.size());
-        for (String data: pointSet) {
-            System.out.println(data);
-        }
+        workbook.close();
         //https://jforj.tistory.com/308 시트만들기
-        return null;
+
+        /**
+         * excel sheet 생성
+         */
+        SXSSFWorkbook writeWorkbook = new SXSSFWorkbook();
+        Sheet sheet = writeWorkbook.createSheet("Sheet1"); // 엑셀 sheet 이름
+        sheet.setDefaultColumnWidth(28); // 디폴트 너비 설정
+
+        /**
+         * header font style
+         */
+        XSSFFont headerXSSFFont = (XSSFFont) writeWorkbook.createFont();
+        headerXSSFFont.setColor(new XSSFColor(new java.awt.Color(0)));
+
+        /**
+         * header cell style
+         */
+        XSSFCellStyle headerXssfCellStyle = (XSSFCellStyle) writeWorkbook.createCellStyle();
+
+        // 테두리 설정
+        headerXssfCellStyle.setBorderLeft(BorderStyle.THIN);
+        headerXssfCellStyle.setBorderRight(BorderStyle.THIN);
+        headerXssfCellStyle.setBorderTop(BorderStyle.THIN);
+        headerXssfCellStyle.setBorderBottom(BorderStyle.THIN);
+
+        // 배경 설정
+//        headerXssfCellStyle.setFillForegroundColor(new XSSFColor(new byte[]{(byte) 34, (byte) 37, (byte) 41}));
+        headerXssfCellStyle.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+        headerXssfCellStyle.setFont(headerXSSFFont);
+
+        /**
+         * body cell style
+         */
+        XSSFCellStyle bodyXssfCellStyle = (XSSFCellStyle) writeWorkbook.createCellStyle();
+
+        // 테두리 설정
+        bodyXssfCellStyle.setBorderLeft(BorderStyle.THIN);
+        bodyXssfCellStyle.setBorderRight(BorderStyle.THIN);
+        bodyXssfCellStyle.setBorderTop(BorderStyle.THIN);
+        bodyXssfCellStyle.setBorderBottom(BorderStyle.THIN);
+
+        /**
+         * header data
+         */
+        int rowCount = 0; // 데이터가 저장될 행
+        Row headerRow = null;
+        Cell headerCell = null;
+        headerRow = sheet.createRow(rowCount++);
+
+        List<String> headerList = new ArrayList<>(pointSet);
+
+        for (int i = 0; i < headerList.size(); i++) {
+            headerCell = headerRow.createCell(i);
+            headerCell.setCellValue(headerList.get(i)); // 데이터 추가
+            headerCell.setCellStyle(headerXssfCellStyle); // 스타일 추가
+        }
+
+
+        /**
+         * body data
+         */
+        Row bodyRow = null;
+        Cell bodyCell = null;
+        List<String> bodyList = new ArrayList<>(treeSet);
+
+        for (String treeName : bodyList) {
+            bodyRow = sheet.createRow(rowCount++);
+            bodyCell = bodyRow.createCell(0);
+            bodyCell.setCellValue(treeName); // 데이터 추가
+            bodyCell.setCellStyle(bodyXssfCellStyle); // 스타일 추가
+        }
+
+        return writeWorkbook;
     }
 
-    /**  containsDuplicationData 중복여부 확인 **/
+    /**
+     * containsDuplicationData 중복여부 확인
+     **/
     public int containsDuplicationData(List<DuplicationData> list, DuplicationData duplicationData) {
         int idx = -1;
-        for (int i = 0 ; i < list.size() ; i ++) {
+        for (int i = 0; i < list.size(); i++) {
             if (list.get(i).equals(duplicationData)) {
                 idx = i;
                 break;
