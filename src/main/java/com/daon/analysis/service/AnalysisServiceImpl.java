@@ -53,9 +53,12 @@ public class AnalysisServiceImpl implements AnalysisService {
     public SXSSFWorkbook duplication(MultipartFile file, Integer sheetIndex) throws Exception {
         final String fileName = "temp";
         List<DuplicationData> duplicationDataList = new ArrayList<>();
+        Map<String, DuplicationData> duplicationDataMap = new HashMap<>();
+        double allCnt = 0; //평균 구하기용 전체 카운트
         String extension = FilenameUtils.getExtension(file.getOriginalFilename());
         Set<String> pointSet = new HashSet<>();
         Set<String> treeSet = new HashSet<>();
+        Cell diameterCell = null;
 
         if (!extension.equals("xlsx") && !extension.equals("xls")) {
             throw new IOException("엑셀파일만 업로드 해주세요.");
@@ -68,19 +71,15 @@ public class AnalysisServiceImpl implements AnalysisService {
         }
 
         Sheet worksheet = workbook.getSheetAt(sheetIndex);
-        int totalCnt = 0;
         for (int i = 1; i < worksheet.getPhysicalNumberOfRows(); i++) { // 4
 
             Row row = worksheet.getRow(i);
             DuplicationData duplicationData = new DuplicationData();
 
-            //최초 cnt 1 설정
-            duplicationData.setCnt(1);
             try {
-                totalCnt++;
                 Cell mountaiNameCell = row.getCell(1);
                 Cell treeNameCell = row.getCell(2);
-                Cell diameterCell = row.getCell(3);
+                diameterCell = row.getCell(3);
 
                 String mountaiName = null == mountaiNameCell ? "" : mountaiNameCell.getStringCellValue();
                 if (StringUtils.isNotEmpty(mountaiName)) {
@@ -92,29 +91,49 @@ public class AnalysisServiceImpl implements AnalysisService {
                     treeSet.add(treeName);
                     //직경 확인후 값 저장
                     if (null != diameterCell) {
+                        Double diameter = null;
+                        // 면적 String 형식으로 저장되었을 경우 형변환
+                        if (CellType.STRING ==diameterCell.getCellType()) {
+                            if (null != diameterCell.getStringCellValue()) {
+                                diameter = Double.valueOf(diameterCell.getStringCellValue());
+                            } else {
+                                diameter = 0D;
+                            }
 
-                        Double diameter = diameterCell.getNumericCellValue();
-                        if (null != diameter && 0 != diameter) {
+                        } else {
+                            diameter = diameterCell.getNumericCellValue();
+                        }
+
+                        if (null != diameter && 0D < diameter) {
                             duplicationData.setDiameter(diameter);
                         } else {
                             duplicationData.setDiameter(0D);
                         }
 
                         //포함여부 확인후 duplicationData
-                        int idx = containsDuplicationData(duplicationDataList, duplicationData);
-                        if (idx > 0) {
-                            duplicationData.setDiameter(duplicationData.getDiameter() + duplicationDataList.get(idx).getDiameter());
-                            duplicationData.setCnt(duplicationDataList.get(idx).getCnt() + 1);
-                            duplicationDataList.remove(idx);
-                        }
 
+                        int idx = containsDuplicationData(duplicationDataList, duplicationData);
+                        if (idx >= 0) {
+                            if (0D < duplicationData.getDiameter()) {
+                                duplicationData.setDiameter(duplicationData.getDiameter() + duplicationDataList.get(idx).getDiameter());
+                                duplicationData.setCnt(duplicationDataList.get(idx).getCnt() + 1);
+                                duplicationDataList.remove(idx);
+                            }
+                        } else {
+                            if (0D < duplicationData.getDiameter()) {
+                                duplicationData.setCnt(1);
+                            }
+                        }
+//난티나무
                     } else {
                         duplicationData.setDiameter(0D);
                     }
-
-                    duplicationDataList.add(duplicationData);
+                    if (duplicationData.getCnt() > 0 && duplicationData.getDiameter() > 0D ) {
+                        allCnt ++;
+                        duplicationDataList.add(duplicationData);
+                        duplicationDataMap.put(duplicationData.getPointName() + "^%^" + duplicationData.getTreeName(), duplicationData);
+                    }
                 }
-
             } catch (Exception e) {
                 e.printStackTrace();
             }
@@ -151,7 +170,7 @@ public class AnalysisServiceImpl implements AnalysisService {
 
         // 배경 설정
 //        headerXssfCellStyle.setFillForegroundColor(new XSSFColor(new byte[]{(byte) 34, (byte) 37, (byte) 41}));
-        headerXssfCellStyle.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+//        headerXssfCellStyle.setFillPattern(FillPatternType.SOLID_FOREGROUND);
         headerXssfCellStyle.setFont(headerXSSFFont);
 
         /**
@@ -174,25 +193,56 @@ public class AnalysisServiceImpl implements AnalysisService {
         headerRow = sheet.createRow(rowCount++);
 
         List<String> headerList = new ArrayList<>(pointSet);
-
+        headerCell = headerRow.createCell(0);
+        headerCell.setCellValue("수종명");
+        headerCell.setCellStyle(headerXssfCellStyle);
         for (int i = 0; i < headerList.size(); i++) {
-            headerCell = headerRow.createCell(i);
+            headerCell = headerRow.createCell(i + 1);
             headerCell.setCellValue(headerList.get(i)); // 데이터 추가
             headerCell.setCellStyle(headerXssfCellStyle); // 스타일 추가
         }
-
+        headerCell = headerRow.createCell(headerList.size() + 1);
+        headerCell.setCellValue("평균");
+        headerCell.setCellStyle(headerXssfCellStyle);
+        headerCell = headerRow.createCell(headerList.size() + 2);
+        headerCell.setCellValue("%");
+        headerCell.setCellStyle(headerXssfCellStyle);
 
         /**
          * body data
          */
         Row bodyRow = null;
         Cell bodyCell = null;
+        Cell avgCell = null;
         List<String> bodyList = new ArrayList<>(treeSet);
 
+        // 수종별 표본고점 데이터 세팅
         for (String treeName : bodyList) {
+            double average = 0;
             bodyRow = sheet.createRow(rowCount++);
             bodyCell = bodyRow.createCell(0);
             bodyCell.setCellValue(treeName); // 데이터 추가
+            for (int i = 0; i < headerList.size(); i++) {
+                DuplicationData data = duplicationDataMap.get(headerList.get(i) + "^%^" + treeName);
+                Cell bodyCntCell = bodyRow.createCell(i + 1);
+
+                if (null != data) {
+                    bodyCntCell.setCellValue(data.getCnt());
+                    average += data.getCnt();
+                } else {
+                    bodyCntCell.setCellValue(0);
+                }
+
+
+                bodyCntCell.setCellStyle(bodyXssfCellStyle);
+            }
+            // 평균 셀
+            avgCell = bodyRow.createCell(headerList.size() + 1);
+            avgCell.setCellValue(average / headerList.size());
+            avgCell.setCellStyle(bodyXssfCellStyle);
+            avgCell = bodyRow.createCell(headerList.size() + 2);
+            avgCell.setCellValue((average / allCnt) * 100);
+            avgCell.setCellStyle(bodyXssfCellStyle);
             bodyCell.setCellStyle(bodyXssfCellStyle); // 스타일 추가
         }
 
