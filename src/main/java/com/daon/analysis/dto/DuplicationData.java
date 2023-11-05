@@ -3,10 +3,20 @@ package com.daon.analysis.dto;
 import java.util.Objects;
 
 public class DuplicationData {
+    private String moutinaName;
+
     private String pointName;
     private String treeName;
     private Double diameter;
     private int cnt;
+
+    public String getMoutinaName() {
+        return moutinaName;
+    }
+
+    public void setMoutinaName(String moutinaName) {
+        this.moutinaName = moutinaName;
+    }
 
     public String getPointName() {
         return pointName;
@@ -56,7 +66,7 @@ public class DuplicationData {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
         DuplicationData that = (DuplicationData) o;
-        return Objects.equals(pointName, that.pointName) && Objects.equals(treeName, that.treeName);
+        return Objects.equals(pointName, that.pointName) && Objects.equals(treeName, that.treeName) && Objects.equals(moutinaName, that.moutinaName);
     }
 
     @Override

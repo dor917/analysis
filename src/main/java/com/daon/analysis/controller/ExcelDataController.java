@@ -44,7 +44,7 @@ public class ExcelDataController {
     }
 
     @RequestMapping("/duplication.dor")
-    public void duplication(@RequestParam("sheetIndex") String sheetIndex, MultipartHttpServletRequest request, HttpServletResponse response) throws Exception {
+    public void duplication(@RequestParam("sheetIndex") String sheetIndex, @RequestParam("type") String type, MultipartHttpServletRequest request, HttpServletResponse response) throws Exception {
         try {
             // 파일 읽어들이기
             MultipartFile file = null;
@@ -52,7 +52,7 @@ public class ExcelDataController {
             if (mIterator.hasNext()) {
                 file = request.getFile(mIterator.next());
             }
-            SXSSFWorkbook workbook = analysisService.duplication(file, Integer.valueOf(sheetIndex));
+            SXSSFWorkbook workbook = analysisService.duplication(file, Integer.valueOf(sheetIndex), Integer.valueOf(type));
             String fileName = "spring_excel_download";
 
             response.setContentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");

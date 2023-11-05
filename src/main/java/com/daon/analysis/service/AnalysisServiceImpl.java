@@ -50,14 +50,16 @@ public class AnalysisServiceImpl implements AnalysisService {
     }
 
     @Override
-    public SXSSFWorkbook duplication(MultipartFile file, Integer sheetIndex) throws Exception {
-        final String fileName = "temp";
+    public SXSSFWorkbook duplication(MultipartFile file, Integer sheetIndex, Integer type) throws Exception {
         List<DuplicationData> duplicationDataList = new ArrayList<>();
         Map<String, DuplicationData> duplicationDataMap = new HashMap<>();
-        double allCnt = 0; //평균 구하기용 전체 카운트
+        Map<String, Double> allCntMap = new HashMap<>();
+
         String extension = FilenameUtils.getExtension(file.getOriginalFilename());
-        Set<String> pointSet = new HashSet<>();
-        Set<String> treeSet = new HashSet<>();
+        Set<String> moutainSet = new HashSet<>();
+        Map<String, Set<String>>  pointSetMap= new HashMap<>();
+        Map<String, Set<String>>  treeSetMap= new HashMap<>();
+
         Cell diameterCell = null;
 
         if (!extension.equals("xlsx") && !extension.equals("xls")) {
@@ -77,18 +79,44 @@ public class AnalysisServiceImpl implements AnalysisService {
             DuplicationData duplicationData = new DuplicationData();
 
             try {
-                Cell mountaiNameCell = row.getCell(1);
+                Cell moutainNameCell = row.getCell(0);
+                Cell pointNameCell = row.getCell(1);
                 Cell treeNameCell = row.getCell(2);
                 diameterCell = row.getCell(3);
 
-                String mountaiName = null == mountaiNameCell ? "" : mountaiNameCell.getStringCellValue();
-                if (StringUtils.isNotEmpty(mountaiName)) {
-                    duplicationData.setPointName(mountaiName);
-                    pointSet.add(mountaiName);
+                String pointName = null == pointNameCell ? "" : pointNameCell.getStringCellValue();
+                if (StringUtils.isNotEmpty(pointName)) {
 
-                    String treeName = null == mountaiNameCell ? "" : treeNameCell.getStringCellValue();
+                    //산이름
+                    String moutainName = null == moutainNameCell ? "" : moutainNameCell.getStringCellValue();
+                    duplicationData.setMoutinaName(moutainName);
+                    moutainSet.add(moutainName);
+
+                    duplicationData.setPointName(pointName);
+                    if (null == pointSetMap.get(moutainName)) {
+                        Set<String> pointSet = new HashSet<>();
+                        pointSet.add(pointName);
+                        pointSetMap.put(moutainName, pointSet);
+                    } else {
+                        Set<String> pointSet = pointSetMap.get(moutainName);
+                        pointSet.add(pointName);
+                        pointSetMap.put(moutainName, pointSet);
+                    }
+
+
+                    String treeName = null == pointNameCell ? "" : treeNameCell.getStringCellValue();
                     duplicationData.setTreeName(treeName);
-                    treeSet.add(treeName);
+
+                    if (null == treeSetMap.get(moutainName)) {
+                        Set<String> treeSet = new HashSet<>();
+                        treeSet.add(treeName);
+                        treeSetMap.put(moutainName, treeSet);
+                    } else {
+                        Set<String> treeSet = treeSetMap.get(moutainName);
+                        treeSet.add(treeName);
+                        treeSetMap.put(moutainName, treeSet);
+                    }
+
                     //직경 확인후 값 저장
                     if (null != diameterCell) {
                         Double diameter = null;
@@ -105,6 +133,9 @@ public class AnalysisServiceImpl implements AnalysisService {
                         }
 
                         if (null != diameter && 0D < diameter) {
+                            if (2 == type) { // 흉고 단면적 값 구하기 일 경우 흉고직경 값에 파이알 제곱
+                                diameter = (diameter / 2) + (diameter / 2) * 3.14;
+                            }
                             duplicationData.setDiameter(diameter);
                         } else {
                             duplicationData.setDiameter(0D);
@@ -124,14 +155,18 @@ public class AnalysisServiceImpl implements AnalysisService {
                                 duplicationData.setCnt(1);
                             }
                         }
-//난티나무
+
                     } else {
                         duplicationData.setDiameter(0D);
                     }
                     if (duplicationData.getCnt() > 0 && duplicationData.getDiameter() > 0D ) {
-                        allCnt ++;
+                        if (allCntMap.get(duplicationData.getMoutinaName()) == null) {
+                            allCntMap.put(duplicationData.getMoutinaName(), 1D);
+                        } else {
+                            allCntMap.put(duplicationData.getMoutinaName(), allCntMap.get(duplicationData.getMoutinaName()) + 1);
+                        }
                         duplicationDataList.add(duplicationData);
-                        duplicationDataMap.put(duplicationData.getPointName() + "^%^" + duplicationData.getTreeName(), duplicationData);
+                        duplicationDataMap.put(duplicationData.getMoutinaName() + "^%^" + duplicationData.getPointName() + "^%^" + duplicationData.getTreeName(), duplicationData);
                     }
                 }
             } catch (Exception e) {
@@ -142,112 +177,151 @@ public class AnalysisServiceImpl implements AnalysisService {
         List<DuplicationData> resultList = new ArrayList<DuplicationData>(new HashSet<DuplicationData>(duplicationDataList));
         resultList = resultList.stream().sorted(Comparator.comparing(DuplicationData::getTreeName)).collect(Collectors.toList());
         workbook.close();
-        //https://jforj.tistory.com/308 시트만들기
 
-        /**
-         * excel sheet 생성
-         */
         SXSSFWorkbook writeWorkbook = new SXSSFWorkbook();
-        Sheet sheet = writeWorkbook.createSheet("Sheet1"); // 엑셀 sheet 이름
-        sheet.setDefaultColumnWidth(28); // 디폴트 너비 설정
+        if (1 == type || 2 == type) { //수목별 중복수 구하기
+            for (String moutainKey : moutainSet) {
+                /**
+                 * excel sheet 생성
+                 */
 
-        /**
-         * header font style
-         */
-        XSSFFont headerXSSFFont = (XSSFFont) writeWorkbook.createFont();
-        headerXSSFFont.setColor(new XSSFColor(new java.awt.Color(0)));
+                Sheet sheet = writeWorkbook.createSheet(moutainKey); // 엑셀 sheet 이름
+                sheet.setDefaultColumnWidth(28); // 디폴트 너비 설정
+                /**
+                 * header font style
+                 */
+                XSSFFont headerXSSFFont = (XSSFFont) writeWorkbook.createFont();
+                headerXSSFFont.setColor(new XSSFColor(new java.awt.Color(0)));
 
-        /**
-         * header cell style
-         */
-        XSSFCellStyle headerXssfCellStyle = (XSSFCellStyle) writeWorkbook.createCellStyle();
+                /**
+                 * header cell style
+                 */
+                XSSFCellStyle headerXssfCellStyle = (XSSFCellStyle) writeWorkbook.createCellStyle();
 
-        // 테두리 설정
-        headerXssfCellStyle.setBorderLeft(BorderStyle.THIN);
-        headerXssfCellStyle.setBorderRight(BorderStyle.THIN);
-        headerXssfCellStyle.setBorderTop(BorderStyle.THIN);
-        headerXssfCellStyle.setBorderBottom(BorderStyle.THIN);
+                // 테두리 설정
+                headerXssfCellStyle.setBorderLeft(BorderStyle.THIN);
+                headerXssfCellStyle.setBorderRight(BorderStyle.THIN);
+                headerXssfCellStyle.setBorderTop(BorderStyle.THIN);
+                headerXssfCellStyle.setBorderBottom(BorderStyle.THIN);
 
-        // 배경 설정
+                // 배경 설정
 //        headerXssfCellStyle.setFillForegroundColor(new XSSFColor(new byte[]{(byte) 34, (byte) 37, (byte) 41}));
 //        headerXssfCellStyle.setFillPattern(FillPatternType.SOLID_FOREGROUND);
-        headerXssfCellStyle.setFont(headerXSSFFont);
+                headerXssfCellStyle.setFont(headerXSSFFont);
 
-        /**
-         * body cell style
-         */
-        XSSFCellStyle bodyXssfCellStyle = (XSSFCellStyle) writeWorkbook.createCellStyle();
+                /**
+                 * body cell style
+                 */
+                XSSFCellStyle bodyXssfCellStyle = (XSSFCellStyle) writeWorkbook.createCellStyle();
 
-        // 테두리 설정
-        bodyXssfCellStyle.setBorderLeft(BorderStyle.THIN);
-        bodyXssfCellStyle.setBorderRight(BorderStyle.THIN);
-        bodyXssfCellStyle.setBorderTop(BorderStyle.THIN);
-        bodyXssfCellStyle.setBorderBottom(BorderStyle.THIN);
+                // 테두리 설정
+                bodyXssfCellStyle.setBorderLeft(BorderStyle.THIN);
+                bodyXssfCellStyle.setBorderRight(BorderStyle.THIN);
+                bodyXssfCellStyle.setBorderTop(BorderStyle.THIN);
+                bodyXssfCellStyle.setBorderBottom(BorderStyle.THIN);
+                /**
+                 * header data
+                 */
+                int rowCount = 0; // 데이터가 저장될 행
+                Row headerRow = null;
+                Cell headerCell = null;
+                headerRow = sheet.createRow(rowCount++);
 
-        /**
-         * header data
-         */
-        int rowCount = 0; // 데이터가 저장될 행
-        Row headerRow = null;
-        Cell headerCell = null;
-        headerRow = sheet.createRow(rowCount++);
-
-        List<String> headerList = new ArrayList<>(pointSet);
-        headerCell = headerRow.createCell(0);
-        headerCell.setCellValue("수종명");
-        headerCell.setCellStyle(headerXssfCellStyle);
-        for (int i = 0; i < headerList.size(); i++) {
-            headerCell = headerRow.createCell(i + 1);
-            headerCell.setCellValue(headerList.get(i)); // 데이터 추가
-            headerCell.setCellStyle(headerXssfCellStyle); // 스타일 추가
-        }
-        headerCell = headerRow.createCell(headerList.size() + 1);
-        headerCell.setCellValue("평균");
-        headerCell.setCellStyle(headerXssfCellStyle);
-        headerCell = headerRow.createCell(headerList.size() + 2);
-        headerCell.setCellValue("%");
-        headerCell.setCellStyle(headerXssfCellStyle);
-
-        /**
-         * body data
-         */
-        Row bodyRow = null;
-        Cell bodyCell = null;
-        Cell avgCell = null;
-        List<String> bodyList = new ArrayList<>(treeSet);
-
-        // 수종별 표본고점 데이터 세팅
-        for (String treeName : bodyList) {
-            double average = 0;
-            bodyRow = sheet.createRow(rowCount++);
-            bodyCell = bodyRow.createCell(0);
-            bodyCell.setCellValue(treeName); // 데이터 추가
-            for (int i = 0; i < headerList.size(); i++) {
-                DuplicationData data = duplicationDataMap.get(headerList.get(i) + "^%^" + treeName);
-                Cell bodyCntCell = bodyRow.createCell(i + 1);
-
-                if (null != data) {
-                    bodyCntCell.setCellValue(data.getCnt());
-                    average += data.getCnt();
-                } else {
-                    bodyCntCell.setCellValue(0);
+                List<String> headerList = new ArrayList<>(pointSetMap.get(moutainKey));
+                headerCell = headerRow.createCell(0);
+                headerCell.setCellValue("수종명");
+                headerCell.setCellStyle(headerXssfCellStyle);
+                for (int i = 0; i < headerList.size(); i++) {
+                    headerCell = headerRow.createCell(i + 1);
+                    headerCell.setCellValue(headerList.get(i)); // 데이터 추가
+                    headerCell.setCellStyle(headerXssfCellStyle); // 스타일 추가
                 }
+                headerCell = headerRow.createCell(headerList.size() + 1);
+                headerCell.setCellValue("평균");
+                headerCell.setCellStyle(headerXssfCellStyle);
+                headerCell = headerRow.createCell(headerList.size() + 2);
+                headerCell.setCellValue("%");
+                headerCell.setCellStyle(headerXssfCellStyle);
+
+                /**
+                 * body data
+                 */
+                Row bodyRow = null;
+                Cell bodyCell = null;
+                Cell avgCell = null;
+                List<String> bodyList = new ArrayList<>(treeSetMap.get(moutainKey));
+
+                if (1 == type) {   // 수종별 표본고점 데이터 세팅
+
+                    for (String treeName : bodyList) {
+                        double average = 0;
+                        bodyRow = sheet.createRow(rowCount++);
+                        bodyCell = bodyRow.createCell(0);
+                        bodyCell.setCellValue(treeName); // 데이터 추가
+                        for (int i = 0; i < headerList.size(); i++) {
+                            DuplicationData data = duplicationDataMap.get(moutainKey + "^%^" + headerList.get(i) + "^%^" + treeName);
+                            Cell bodyCntCell = bodyRow.createCell(i + 1);
+
+                            if (null != data) {
+                                bodyCntCell.setCellValue(data.getCnt());
+                                average += data.getCnt();
+                            } else {
+                                bodyCntCell.setCellValue(0);
+                            }
 
 
-                bodyCntCell.setCellStyle(bodyXssfCellStyle);
+                            bodyCntCell.setCellStyle(bodyXssfCellStyle);
+                        }
+                        // 평균 셀
+                        avgCell = bodyRow.createCell(headerList.size() + 1);
+                        avgCell.setCellValue(average / headerList.size());
+                        avgCell.setCellStyle(bodyXssfCellStyle);
+                        avgCell = bodyRow.createCell(headerList.size() + 2);
+                        avgCell.setCellValue((average / allCntMap.get(moutainKey)) * 100);
+                        avgCell.setCellStyle(bodyXssfCellStyle);
+                        bodyCell.setCellStyle(bodyXssfCellStyle); // 스타일 추가
+                    }
+                } else {// 수종별 표본고점 데이터 세팅
+                    /**
+                     * body data
+                     */
+                    for (String treeName : bodyList) {
+                        double average = 0;
+                        bodyRow = sheet.createRow(rowCount++);
+                        bodyCell = bodyRow.createCell(0);
+                        bodyCell.setCellValue(treeName); // 데이터 추가
+                        for (int i = 0; i < headerList.size(); i++) {
+                            DuplicationData data = duplicationDataMap.get(moutainKey + "^%^" + headerList.get(i) + "^%^" + treeName);
+                            Cell bodyCntCell = bodyRow.createCell(i + 1);
+
+                            if (null != data) {
+                                bodyCntCell.setCellValue(data.getDiameter() * 0.0001);
+                                average += data.getDiameter() * 0.0001;
+                            } else {
+                                bodyCntCell.setCellValue(0);
+                            }
+
+
+                            bodyCntCell.setCellStyle(bodyXssfCellStyle);
+                        }
+                        // 평균 셀
+                        avgCell = bodyRow.createCell(headerList.size() + 1);
+                        avgCell.setCellValue(average / headerList.size());
+                        avgCell.setCellStyle(bodyXssfCellStyle);
+                        avgCell = bodyRow.createCell(headerList.size() + 2);
+                        avgCell.setCellValue((average / allCntMap.get(moutainKey)) * 100);
+                        avgCell.setCellStyle(bodyXssfCellStyle);
+                        bodyCell.setCellStyle(bodyXssfCellStyle); // 스타일 추가
+                    }
+                }
             }
-            // 평균 셀
-            avgCell = bodyRow.createCell(headerList.size() + 1);
-            avgCell.setCellValue(average / headerList.size());
-            avgCell.setCellStyle(bodyXssfCellStyle);
-            avgCell = bodyRow.createCell(headerList.size() + 2);
-            avgCell.setCellValue((average / allCnt) * 100);
-            avgCell.setCellStyle(bodyXssfCellStyle);
-            bodyCell.setCellStyle(bodyXssfCellStyle); // 스타일 추가
+
         }
+
 
         return writeWorkbook;
     }
+
 
     /**
      * containsDuplicationData 중복여부 확인
