@@ -36,10 +36,10 @@ public class ExcelDataController {
     AnalysisService analysisService;
 
     @RequestMapping("/readExcelHeader.dor")
-    public String read(@RequestParam("file") MultipartFile file, Model model) throws Exception {
-        ArrayList<Map<String, String>> readDateList = analysisService.readData(file);
-        model.addAttribute("file", file);
-        model.addAttribute("sheerMap", readDateList);
+    public String read(Model model) throws Exception {
+//        ArrayList<Map<String, String>> readDateList = analysisService.readData(file);
+//        model.addAttribute("file", file);
+//        model.addAttribute("sheerMap", readDateList);
         return "readExcelHeader";
     }
 

@@ -16,25 +16,34 @@
 <body>
 	<div>
 		<h2>데이터 파일 구하기</h2>
-		<div>
-			<button id = 'btn-duplication' class="data-type" data-type = '1'>수목별 중복수 구하기</button>
-			<button id = 'btn-duplication2' class="data-type" data-type = '2'>흉고 단면적 값 구하기</button>
-			<button class="data-type">중요치 구하기</button>
-			<button class="data-type">흉고직경급 구하기</button>
-		</div>
+
+		<form id="duplicationForm" enctype="multipart/form-data" action='retrun false;'>
+			<input type="file" name="file" id="file"/>
+			<input type="hidden" name="type" id="type"/>
+			<div>
+				<input type="text" name="sheetIndex" id="sheetIndex" value="1"/>
+				<button id = 'btn-duplication' type="button" class="data-type" data-type = '1'>수목별 중복수 구하기</button>
+			</div>
+			<div>
+				<button id = 'btn-duplication2' type="button" class="data-type" data-type = '2'>흉고 단면적 값 구하기</button>
+			</div>
+			<div>
+				<button id = 'btn-duplication3' type="button" class="data-type" data-type = '3'>중요치 구하기</button>
+			</div>
+				<button class="data-type">흉고직경급 구하기</button>
+
+		</form>
 	</div>
-	<div>
-		<h2>엑셀 시트 명</h2>
-		<% for(int i = 0; i < readDateList.size(); i++ ) { %>
-			<button data-value='<%=i%>' class="sheet-name"><%=readDateList.get(i).get(String.valueOf(i))%></button>
-		<% } %>
-	</div>
-	<form id="duplicationForm" enctype="multipart/form-data" action="/excel/duplication.dor">
-		<input type="file" name="file" id="file"/>
-		<input type="text" name="sheetIndex" id="sheetIndex" value="1"/>
-		<input type="text" name="type" id="type"/>
-		<button>azz</button>
-	</form>
+<%--	<div>--%>
+<%--		<h2>엑셀 시트 명</h2>--%>
+<%--		<% for(int i = 0; i < readDateList.size(); i++ ) { %>--%>
+<%--			<button data-value='<%=i%>' class="sheet-name"><%=readDateList.get(i).get(String.valueOf(i))%></button>--%>
+<%--		<% } %>--%>
+<%--	</div>--%>
+
+
+
+
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
 <script type="text/javascript">
 
