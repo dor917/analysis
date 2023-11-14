@@ -63,6 +63,14 @@
 		}
 
 	}
+	document.getElementById('btn-duplication3').onclick = (e) => {
+		if ('' == document.getElementById('file').value) {
+			alert('파일을 선택해주세요')
+		} else {
+			getExcelFile(e.target.dataset.type);
+		}
+
+	}
 
 	const getExcelFile = (type) => {
 		var form = $('#duplicationForm')[0];

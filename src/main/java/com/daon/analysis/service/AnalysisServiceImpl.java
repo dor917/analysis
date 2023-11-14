@@ -49,6 +49,10 @@ public class AnalysisServiceImpl implements AnalysisService {
 
     }
 
+
+    /**
+     * 수목별 중복수 , 흉고 단면적 값 구하기
+     */
     @Override
     public SXSSFWorkbook duplication(MultipartFile file, Integer sheetIndex, Integer type) throws Exception {
         String extension = FilenameUtils.getExtension(file.getOriginalFilename());
@@ -222,6 +226,14 @@ public class AnalysisServiceImpl implements AnalysisService {
 
 
         return writeWorkbook;
+    }
+
+    /**
+     * 중요치 구하기
+     */
+    @Override
+    public SXSSFWorkbook importantValue(MultipartFile file, Integer integer) {
+        return null;
     }
 
 

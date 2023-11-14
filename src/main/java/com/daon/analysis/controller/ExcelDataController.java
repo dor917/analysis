@@ -52,7 +52,13 @@ public class ExcelDataController {
             if (mIterator.hasNext()) {
                 file = request.getFile(mIterator.next());
             }
-            SXSSFWorkbook workbook = analysisService.duplication(file, Integer.valueOf(sheetIndex), Integer.valueOf(type));
+
+            SXSSFWorkbook workbook = null;
+            if ("1".equals(type) || "2".equals(type)) {
+                workbook = analysisService.duplication(file, Integer.valueOf(sheetIndex), Integer.valueOf(type));
+            } else if ("3".equals(type)) {
+                workbook = analysisService.importantValue(file, Integer.valueOf(sheetIndex));
+            }
             String fileName = "spring_excel_download";
 
             response.setContentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");

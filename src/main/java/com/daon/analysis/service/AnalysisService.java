@@ -10,4 +10,6 @@ public interface AnalysisService {
     public ArrayList<Map<String, String>> readData(MultipartFile mf) throws Exception;
 
     public SXSSFWorkbook duplication (MultipartFile mf, Integer sheetIndex, Integer type) throws Exception;
+
+    public SXSSFWorkbook importantValue(MultipartFile file, Integer integer);
 }
