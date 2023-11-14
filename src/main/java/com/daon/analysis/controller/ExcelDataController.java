@@ -57,7 +57,7 @@ public class ExcelDataController {
             if ("1".equals(type) || "2".equals(type)) {
                 workbook = analysisService.duplication(file, Integer.valueOf(sheetIndex), Integer.valueOf(type));
             } else if ("3".equals(type)) {
-                workbook = analysisService.importantValue(file, Integer.valueOf(sheetIndex));
+                workbook = analysisService.importantValue(file, Integer.valueOf(sheetIndex), Integer.valueOf(sheetIndex));
             }
             String fileName = "spring_excel_download";
 

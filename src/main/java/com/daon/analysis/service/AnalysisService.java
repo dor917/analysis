@@ -11,5 +11,5 @@ public interface AnalysisService {
 
     public SXSSFWorkbook duplication (MultipartFile mf, Integer sheetIndex, Integer type) throws Exception;
 
-    public SXSSFWorkbook importantValue(MultipartFile file, Integer integer);
+    public SXSSFWorkbook importantValue(MultipartFile file, Integer sheetIndex, Integer integer) throws Exception;
 }

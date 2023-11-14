@@ -55,18 +55,8 @@ public class AnalysisServiceImpl implements AnalysisService {
      */
     @Override
     public SXSSFWorkbook duplication(MultipartFile file, Integer sheetIndex, Integer type) throws Exception {
-        String extension = FilenameUtils.getExtension(file.getOriginalFilename());
 
-        if (!extension.equals("xlsx") && !extension.equals("xls")) {
-            throw new IOException("엑셀파일만 업로드 해주세요.");
-        }
-
-        Workbook workbook = null;
-        if (extension.equals("xlsx")) {
-            workbook = new XSSFWorkbook(file.getInputStream());
-        } else if (extension.equals("xls")) {
-            workbook = new HSSFWorkbook(file.getInputStream());
-        }
+        Workbook workbook = getWorkbook(file);
 
         SXSSFWorkbook writeWorkbook = new SXSSFWorkbook();
 
@@ -232,7 +222,14 @@ public class AnalysisServiceImpl implements AnalysisService {
      * 중요치 구하기
      */
     @Override
-    public SXSSFWorkbook importantValue(MultipartFile file, Integer integer) {
+    public SXSSFWorkbook importantValue(MultipartFile file, Integer sheetIndex, Integer integer) throws Exception{
+        Workbook workbook = getWorkbook(file);
+        Sheet worksheet = workbook.getSheetAt(sheetIndex);
+
+        Row getheaderRow = workbook.getSheetAt(sheetIndex).getRow(0);
+        Map<String, Integer> diameterMap = findDiameterColumns(getheaderRow); // 년도
+        //map 수종 년도별 수종수
+        //map2 주송 년도별 흉고 단면적
         return null;
     }
 
@@ -375,5 +372,17 @@ public class AnalysisServiceImpl implements AnalysisService {
             }
         }
         return idx;
+    }
+
+    private Workbook getWorkbook (MultipartFile file) throws Exception{
+        String extension = FilenameUtils.getExtension(file.getOriginalFilename());
+
+        Workbook workbook = null;
+        if (extension.equals("xlsx")) {
+            workbook = new XSSFWorkbook(file.getInputStream());
+        } else if (extension.equals("xls")) {
+            workbook = new HSSFWorkbook(file.getInputStream());
+        }
+        return workbook;
     }
 }
