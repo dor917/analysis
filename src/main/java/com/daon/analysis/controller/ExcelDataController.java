@@ -52,14 +52,19 @@ public class ExcelDataController {
             if (mIterator.hasNext()) {
                 file = request.getFile(mIterator.next());
             }
-
+            String fileName = "";
             SXSSFWorkbook workbook = null;
             if ("1".equals(type) || "2".equals(type)) {
+                if ("1".equals(type)) {
+                    fileName = "duplicates";
+                } else {
+                    fileName = "area";
+                }
                 workbook = analysisService.duplication(file, Integer.valueOf(sheetIndex), Integer.valueOf(type));
             } else if ("3".equals(type)) {
+                fileName = "importantValue";
                 workbook = analysisService.importantValue(file, Integer.valueOf(sheetIndex), Integer.valueOf(sheetIndex));
             }
-            String fileName = "spring_excel_download";
 
             response.setContentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
             response.setHeader("Content-Disposition", "attachment;filename=" + fileName + ".xlsx");

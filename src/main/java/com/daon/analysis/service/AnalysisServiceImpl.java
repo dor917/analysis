@@ -14,6 +14,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.math.BigDecimal;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -74,7 +75,7 @@ public class AnalysisServiceImpl implements AnalysisService {
                 Map<String, Set<String>> pointSetMap = new HashMap<>();
                 Map<String, Set<String>> treeSetMap = new HashMap<>();
 
-                getExcelData(workbook, sheetIndex, 3, type, duplicationDataList, allCntMap, duplicationDataMap, moutainSet, pointSetMap, treeSetMap);
+                getExcelData(workbook, sheetIndex, diameterMap.get(diameterKey), type, duplicationDataList, allCntMap, duplicationDataMap, moutainSet, pointSetMap, treeSetMap);
                 for (String moutainKey : moutainSet) {
                     /**
                      * excel sheet 생성
@@ -98,6 +99,7 @@ public class AnalysisServiceImpl implements AnalysisService {
                     headerXssfCellStyle.setBorderRight(BorderStyle.THIN);
                     headerXssfCellStyle.setBorderTop(BorderStyle.THIN);
                     headerXssfCellStyle.setBorderBottom(BorderStyle.THIN);
+                    headerXssfCellStyle.setAlignment(HorizontalAlignment.CENTER);
 
                     // 배경 설정
     //        headerXssfCellStyle.setFillForegroundColor(new XSSFColor(new byte[]{(byte) 34, (byte) 37, (byte) 41}));
@@ -201,19 +203,20 @@ public class AnalysisServiceImpl implements AnalysisService {
                             }
                             // 평균 셀
                             avgCell = bodyRow.createCell(headerList.size() + 1);
-                            avgCell.setCellValue(average / headerList.size());
+                            avgCell.setCellValue(new BigDecimal(average / headerList.size()).setScale(4, BigDecimal.ROUND_FLOOR).doubleValue());
                             avgCell.setCellStyle(bodyXssfCellStyle);
                             avgCell = bodyRow.createCell(headerList.size() + 2);
-                            avgCell.setCellValue((average / allCntMap.get(moutainKey)) * 100);
+                            avgCell.setCellValue(new BigDecimal(average / allCntMap.get(moutainKey) * 100).setScale(4, BigDecimal.ROUND_FLOOR).doubleValue());
                             avgCell.setCellStyle(bodyXssfCellStyle);
                             bodyCell.setCellStyle(bodyXssfCellStyle); // 스타일 추가
                         }
                     }
                 }
-            }
-            workbook.close();
-        }
 
+            }
+
+        }
+        workbook.close();
 
         return writeWorkbook;
     }
@@ -224,13 +227,148 @@ public class AnalysisServiceImpl implements AnalysisService {
     @Override
     public SXSSFWorkbook importantValue(MultipartFile file, Integer sheetIndex, Integer integer) throws Exception{
         Workbook workbook = getWorkbook(file);
+        SXSSFWorkbook writeWorkbook = new SXSSFWorkbook();
         Sheet worksheet = workbook.getSheetAt(sheetIndex);
 
         Row getheaderRow = workbook.getSheetAt(sheetIndex).getRow(0);
         Map<String, Integer> diameterMap = findDiameterColumns(getheaderRow); // 년도
+        Map<String, Integer> treeYearCountMap = new HashMap<>();
+        Map<String, Double> treeYeardiameterMap = new HashMap<>();
+        Set<String> moutainSet = new HashSet<>();
         //map 수종 년도별 수종수
         //map2 주송 년도별 흉고 단면적
-        return null;
+        for ( String diameterKey : diameterMap.keySet() ) {
+            for (int i = 1; i < worksheet.getPhysicalNumberOfRows(); i++) {
+                Row row = worksheet.getRow(i);
+                Cell moutainNameCell = row.getCell(0);
+                Cell pointNameCell = row.getCell(1);
+                Cell treeNameCell = row.getCell(2);
+                Cell diameterCell = row.getCell(diameterMap.get(diameterKey));
+                String pointName = null == pointNameCell ? "" : pointNameCell.getStringCellValue();
+                if (StringUtils.isNotEmpty(pointName)) {
+
+                    //산이름
+                    String moutainName = null == moutainNameCell ? "" : moutainNameCell.getStringCellValue();
+                    String treeName = null == pointNameCell ? "" : treeNameCell.getStringCellValue();
+                    if (StringUtils.isNotEmpty(moutainName)) {
+                        moutainSet.add(moutainName);
+                    }
+                    String mapKey = diameterKey + "^%^" + moutainName + "^%^" + treeName;
+
+
+                    //직경 확인후 값 저장
+                    if (null != diameterCell) {
+                        Double diameter = null;
+                        // 면적 String 형식으로 저장되었을 경우 형변환
+                        if (CellType.STRING ==diameterCell.getCellType()) {
+                            if (null != diameterCell.getStringCellValue()) {
+                                diameter = Double.valueOf(diameterCell.getStringCellValue());
+                            } else {
+                                diameter = 0D;
+                            }
+
+                        } else {
+                            diameter = diameterCell.getNumericCellValue();
+                        }
+
+                        if (null != diameter && 0D < diameter) {
+                            //년도, 산, 나무별 카운트
+                            int cnt = treeYearCountMap.get(mapKey) == null ? 1 : treeYearCountMap.get(mapKey) + 1;
+                            treeYearCountMap.put(mapKey, cnt);
+
+                            diameter = (diameter / 2) + (diameter / 2) * 3.14;  // 흉고 단면적 값 구하기 일 경우 흉고직경 값에 파이알 제곱
+                            //년도, 산, 나무별 흉고직경 더하기
+                            double diameterSum = treeYeardiameterMap.get(mapKey) == null ? diameter : treeYeardiameterMap.get(mapKey) + diameter;
+                            treeYeardiameterMap.put(mapKey, diameterSum);
+                        }
+
+
+
+                    } else {
+
+                    }
+
+
+                }
+            }
+        }
+        for (String key : treeYearCountMap.keySet()) {
+            System.out.println(key + "+++++" + treeYearCountMap.get(key));
+        }
+        for (String key : treeYeardiameterMap.keySet()) {
+            System.out.println(key + "+++++" + treeYeardiameterMap.get(key));
+        }
+
+        for (String moutainKey : moutainSet) {
+
+            Sheet sheet = writeWorkbook.createSheet(moutainKey); // 엑셀 sheet 이름
+            sheet.setDefaultColumnWidth(28); // 디폴트 너비 설정
+            /**
+             * header font style
+             */
+            XSSFFont headerXSSFFont = (XSSFFont) writeWorkbook.createFont();
+            headerXSSFFont.setColor(new XSSFColor(new java.awt.Color(0)));
+
+            /**
+             * header cell style
+             */
+            XSSFCellStyle headerXssfCellStyle = (XSSFCellStyle) writeWorkbook.createCellStyle();
+
+            // 테두리 설정
+            headerXssfCellStyle.setBorderLeft(BorderStyle.THIN);
+            headerXssfCellStyle.setBorderRight(BorderStyle.THIN);
+            headerXssfCellStyle.setBorderTop(BorderStyle.THIN);
+            headerXssfCellStyle.setBorderBottom(BorderStyle.THIN);
+            headerXssfCellStyle.setAlignment(HorizontalAlignment.CENTER); // 가운데 정렬 (가로 기준)
+
+            // 배경 설정
+            //        headerXssfCellStyle.setFillForegroundColor(new XSSFColor(new byte[]{(byte) 34, (byte) 37, (byte) 41}));
+            //        headerXssfCellStyle.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+            headerXssfCellStyle.setFont(headerXSSFFont);
+
+            /**
+             * body cell style
+             */
+            XSSFCellStyle bodyXssfCellStyle = (XSSFCellStyle) writeWorkbook.createCellStyle();
+
+            // 테두리 설정
+            bodyXssfCellStyle.setBorderLeft(BorderStyle.THIN);
+            bodyXssfCellStyle.setBorderRight(BorderStyle.THIN);
+            bodyXssfCellStyle.setBorderTop(BorderStyle.THIN);
+            bodyXssfCellStyle.setBorderBottom(BorderStyle.THIN);
+
+            /**
+             * header data
+             */
+            int rowCount = 0; // 데이터가 저장될 행
+            int headerCellCount = 0; // 데이터가 저장될 행
+            Row headerRow = null;
+            Cell headerCell = null;
+            headerRow = sheet.createRow(rowCount ++);
+            headerRow.setHeight((short) 600);
+            headerCell = headerRow.createCell(headerCellCount ++);
+            headerCell.setCellValue("수종명");
+            headerCell.setCellStyle(headerXssfCellStyle);
+            List<String> diameterMapKeySet = new ArrayList<>(diameterMap.keySet());
+            Collections.sort(diameterMapKeySet);
+            for ( String diameterKey : diameterMapKeySet ) {
+                headerCell = headerRow.createCell(headerCellCount ++);
+                headerCell.setCellValue("출연지점\r\n" + "(" + diameterKey + ")");
+                headerCell.setCellStyle(headerXssfCellStyle);
+                headerCell = headerRow.createCell(headerCellCount ++);
+                headerCell.setCellValue("%\r\n" + "(" + diameterKey + ")");
+                headerCell.setCellStyle(headerXssfCellStyle);
+                headerCell = headerRow.createCell(headerCellCount ++);
+                headerCell.setCellValue("중요치\r\n" + "(" + diameterKey + ")");
+                headerCell.setCellStyle(headerXssfCellStyle);
+            }
+
+
+
+        }
+        workbook.close();
+
+        return writeWorkbook;
     }
 
 
@@ -385,4 +523,5 @@ public class AnalysisServiceImpl implements AnalysisService {
         }
         return workbook;
     }
+
 }
