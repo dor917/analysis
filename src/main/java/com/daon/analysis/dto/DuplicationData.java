@@ -5,6 +5,7 @@ import java.util.Objects;
 public class DuplicationData {
     private String moutinaName;
 
+    private String year;
     private String pointName;
     private String treeName;
     private Double diameter;
@@ -34,6 +35,14 @@ public class DuplicationData {
         this.treeName = treeName;
     }
 
+    public String getYear() {
+        return year;
+    }
+
+    public void setYear(String year) {
+        this.year = year;
+    }
+
     public Double getDiameter() {
         return diameter;
     }
@@ -54,6 +63,7 @@ public class DuplicationData {
     @Override
     public String toString() {
         return "DuplicationData{" +
+                "year='" + year + '\'' +
                 "pointName='" + pointName + '\'' +
                 ", treeName='" + treeName + '\'' +
                 ", diameter=" + diameter +
@@ -66,7 +76,7 @@ public class DuplicationData {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
         DuplicationData that = (DuplicationData) o;
-        return Objects.equals(pointName, that.pointName) && Objects.equals(treeName, that.treeName) && Objects.equals(moutinaName, that.moutinaName);
+        return Objects.equals(pointName, that.pointName) && Objects.equals(treeName, that.treeName) && Objects.equals(moutinaName, that.moutinaName) && Objects.equals(year, that.year);
     }
 
     @Override

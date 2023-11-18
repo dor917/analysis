@@ -12,4 +12,6 @@ public interface AnalysisService {
     public SXSSFWorkbook duplication (MultipartFile mf, Integer sheetIndex, Integer type) throws Exception;
 
     public SXSSFWorkbook importantValue(MultipartFile file, Integer sheetIndex, Integer integer) throws Exception;
+
+    public SXSSFWorkbook getDiameter(MultipartFile file, Integer integer, Integer integer1, String treeName) throws Exception;
 }
