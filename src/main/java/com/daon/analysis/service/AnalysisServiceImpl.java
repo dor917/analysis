@@ -267,11 +267,14 @@ public class AnalysisServiceImpl implements AnalysisService {
                 Cell treeNameCell = row.getCell(treeIndex);
                 Cell diameterCell = row.getCell(diameterMap.get(diameterKey));
                 String pointName = null == pointNameCell ? "" : pointNameCell.getStringCellValue();
+                if(treeNameCell == null || moutainNameCell == null || diameterCell == null) {
+                    continue;
+                }
                 if (StringUtils.isNotEmpty(pointName)) {
 
                     //산이름
                     String moutainName = null == moutainNameCell ? "" : moutainNameCell.getStringCellValue();
-                    String treeName = null == pointNameCell ? "" : treeNameCell.getStringCellValue();
+                    String treeName = null == treeNameCell ? "" : treeNameCell.getStringCellValue();
                     if (StringUtils.isNotEmpty(treeName)) {
                         treeSet.add(treeName);
                     }
@@ -498,6 +501,9 @@ public class AnalysisServiceImpl implements AnalysisService {
                     String moutainName = null == moutainNameCell ? "" : moutainNameCell.getStringCellValue();
                     String cellTreeName = null == treeNameCell ? "" : treeNameCell.getStringCellValue();
 
+                    if(treeNameCell == null || moutainNameCell == null || diameterCell == null) {
+                        continue;
+                    }
 
                     if (StringUtils.isNotEmpty(moutainName)) {
                         moutainSet.add(moutainName);
@@ -514,8 +520,8 @@ public class AnalysisServiceImpl implements AnalysisService {
                     if (null != stateCell) {
                         // 면적 String 형식으로 저장되었을 경우 형변환
                         if (CellType.STRING == stateCell.getCellType()) {
-                            if (null != stateCell.getStringCellValue()) {
-                                state = Double.valueOf(stateCell.getStringCellValue());
+                            if (null != stateCell.getStringCellValue() && isNumeric(stateCell.getStringCellValue())) {
+                                state = Double.parseDouble(stateCell.getStringCellValue());
                             } else {
                                 state = 0D;
                             }
@@ -707,7 +713,7 @@ public class AnalysisServiceImpl implements AnalysisService {
                     }
 
 
-                    String treeName = null == pointNameCell ? "" : treeNameCell.getStringCellValue();
+                    String treeName = null == treeNameCell ? "" : treeNameCell.getStringCellValue();
                     duplicationData.setTreeName(treeName);
 
                     if (null == treeSetMap.get(moutainName)) {
@@ -827,5 +833,12 @@ public class AnalysisServiceImpl implements AnalysisService {
         }
         return workbook;
     }
-
+     static boolean isNumeric(String s) {
+        try {
+            Double.parseDouble(s);
+            return true;
+        } catch (NumberFormatException e) {
+            return false;
+        }
+    }
 }
